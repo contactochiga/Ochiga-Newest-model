@@ -1,0 +1,1158 @@
+openapi: 3.0.3
+info:
+  title: Ochiga Estate API
+  version: "1.0.0"
+  description: |
+    Core API for Ochiga estate management — auth, users, houses, requests, payments, devices, community.
+    Extended with Wallet (micro-economy), Assistant (AI helper), Virtual Estates (digital plots), and Reports.
+servers:
+  - url: https://api.ochiga.example.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local dev
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+    # Basic user
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [resident, manager, staff]
+        phone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Auth bodies
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    # Estates
+    Estate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    House:
+      type: object
+      properties:
+        id:
+          type: string
+        estateId:
+          type: string
+        number:
+          type: string
+        ownerId:
+          type: string
+        status:
+          type: string
+          enum: [occupied, vacant]
+        balance:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    # Devices & telemetry
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        estateId:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        topic:
+          type: string
+        meta:
+          type: object
+        state:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    DeviceCommand:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [on, off, set, toggle]
+        payload:
+          type: object
+        requestId:
+          type: string
+
+    # Payments & wallet
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        estateId:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, paid, failed]
+        externalRef:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    InvoiceCreate:
+      type: object
+      required: [userId, amount, description]
+      properties:
+        userId:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+          default: NGN
+        description:
+          type: string
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        walletId:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [topup, transfer, payout, invoice, refund]
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, success, failed]
+        meta:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+        ownerId:
+          type: string
+        balance:
+          type: integer
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    WalletTopupRequest:
+      type: object
+      required: [amount, method]
+      properties:
+        amount:
+          type: integer
+        method:
+          type: string
+          enum: [card, bank, ussd, opay]
+        metadata:
+          type: object
+
+    WalletTransferRequest:
+      type: object
+      required: [toUserId, amount]
+      properties:
+        toUserId:
+          type: string
+        amount:
+          type: integer
+        note:
+          type: string
+
+    # Community posts
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+        authorId:
+          type: string
+        estateId:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+        videoUrl:
+          type: string
+        pinned:
+          type: boolean
+        allowComments:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        postId:
+          type: string
+        authorId:
+          type: string
+        text:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # Virtual Estates (metaverse/digital plots)
+    VirtualEstate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: integer
+        currency:
+          type: string
+        coordinates:
+          type: object
+          properties:
+            x: { type: number }
+            y: { type: number }
+            z: { type: number }
+        media:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [available, reserved, sold]
+        createdAt:
+          type: string
+          format: date-time
+
+    VirtualEstateReservation:
+      type: object
+      properties:
+        id:
+          type: string
+        estateId:
+          type: string
+        userId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    # AI Assistant
+    AssistantRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        context:
+          type: object
+          description: "Optional contextual metadata (estateId, userId, preferences)"
+    AssistantResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        reply:
+          type: string
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              payload:
+                type: object
+        confidence:
+          type: number
+          format: float
+
+    # Reports
+    ReportSummary:
+      type: object
+      properties:
+        estateId:
+          type: string
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+        stats:
+          type: object
+
+  examples:
+    WalletTopupExample:
+      value:
+        amount: 50000
+        method: "bank"
+        metadata:
+          bank: "FCMB"
+          account_last4: "1234"
+
+security:
+  - bearerAuth: []
+
+paths:
+  # -- AUTH
+  /api/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      summary: Logout (revoke refresh token)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+      responses:
+        '204':
+          description: logged out
+
+  # -- CURRENT USER
+  /api/users/me:
+    get:
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      summary: Update current user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # -- ESTATES & HOUSES
+  /api/estates:
+    get:
+      summary: List estates
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: estates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Estate'
+    post:
+      summary: Create estate (manager)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, address]
+              properties:
+                name: { type: string }
+                address: { type: string }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estate'
+
+  /api/estates/{estateId}/houses:
+    parameters:
+      - name: estateId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List houses in estate
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: houses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/House'
+
+  /api/houses/{houseId}:
+    parameters:
+      - name: houseId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get house
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: house
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+    put:
+      summary: Update house
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                balance: { type: integer }
+      responses:
+        '200':
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+
+  # -- REQUESTS / MAINTENANCE
+  /api/requests:
+    post:
+      summary: Create maintenance/request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [houseId, category, description]
+              properties:
+                houseId: { type: string }
+                category: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+    get:
+      summary: List requests (filter with query)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Request'
+
+  /api/requests/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update request (status, assigned)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                assignedTo: { type: string }
+      responses:
+        '200':
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+
+  # -- PAYMENTS (invoices) & webhooks
+  /api/payments/invoice:
+    post:
+      summary: Create invoice / start payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreate'
+      responses:
+        '201':
+          description: invoice created (include paymentUrl)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoiceId: { type: string }
+                  paymentUrl: { type: string }
+                  expiresAt: { type: string, format: date-time }
+
+  /api/payments/webhook:
+    post:
+      summary: Payment gateway webhook (public endpoint)
+      requestBody:
+        required: true
+      responses:
+        '204':
+          description: webhook received
+
+  # -- DEVICES / IOT
+  /api/devices:
+    get:
+      summary: List devices (optionally by estateId query)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: estateId
+          schema: { type: string }
+      responses:
+        '200':
+          description: devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+    post:
+      summary: Register device (manager)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estateId, name, type, topic]
+              properties:
+                estateId: { type: string }
+                name: { type: string }
+                type: { type: string }
+                topic: { type: string }
+                meta: { type: object }
+      responses:
+        '201':
+          description: device created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /api/devices/{deviceId}/action:
+    parameters:
+      - name: deviceId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Send command to device (publishes to MQTT)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCommand'
+      responses:
+        '202':
+          description: accepted (command queued/published)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId: { type: string }
+
+  # -- COMMUNITY POSTS
+  /api/estates/{estateId}/posts:
+    parameters:
+      - name: estateId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List posts for estate (pinned first)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+    post:
+      summary: Create post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estateId, content]
+              properties:
+                estateId: { type: string }
+                content: { type: string }
+                imageUrl: { type: string }
+                videoUrl: { type: string }
+                pinned: { type: boolean }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+
+  /api/posts/{postId}/comments:
+    parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Add comment to post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+
+  # ------------------------------
+  # NEW: WALLET / MICRO-ECONOMY
+  # ------------------------------
+  /api/wallet:
+    get:
+      summary: Get current user's wallet
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: wallet object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+
+  /api/wallet/topup:
+    post:
+      summary: Top up wallet (create payment intent / invoice)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletTopupRequest'
+            examples:
+              example1:
+                $ref: '#/components/examples/WalletTopupExample'
+      responses:
+        '201':
+          description: topup initiated (payment url or client token)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactionId: { type: string }
+                  paymentUrl: { type: string }
+
+  /api/wallet/transfer:
+    post:
+      summary: Transfer funds to another user within Ochiga
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletTransferRequest'
+      responses:
+        '200':
+          description: transfer completed/queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+
+  /api/wallet/transactions:
+    get:
+      summary: List wallet transactions for current user (paged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list of transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+
+  /api/wallet/payout:
+    post:
+      summary: Request a payout from wallet to bank (KYC checks applied)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, bankAccount]
+              properties:
+                amount: { type: integer }
+                bankAccount: { type: object }
+      responses:
+        '202':
+          description: payout queued
+
+  # ------------------------------
+  # NEW: AI ASSISTANT
+  # ------------------------------
+  /api/assistant/query:
+    post:
+      summary: Query estate AI assistant (helps route tasks, suggest vendors, create requests)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssistantRequest'
+      responses:
+        '200':
+          description: assistant reply (may include suggested actions)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantResponse'
+
+  # ------------------------------
+  # NEW: VIRTUAL ESTATES (digital plots / metaverse)
+  # ------------------------------
+  /api/virtual-estates:
+    get:
+      summary: List virtual estates / plots
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [available, reserved, sold]
+      responses:
+        '200':
+          description: virtual estate list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VirtualEstate'
+    post:
+      summary: Create a virtual estate (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                price: { type: integer }
+                currency: { type: string }
+                coordinates:
+                  type: object
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VirtualEstate'
+
+  /api/virtual-estates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get virtual estate details
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VirtualEstate'
+    post:
+      summary: Reserve virtual estate (creates short reservation)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string }
+                holdMinutes: { type: integer, default: 30 }
+      responses:
+        '201':
+          description: reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VirtualEstateReservation'
+
+  /api/virtual-estates/{id}/buy:
+    post:
+      summary: Complete purchase for virtual estate (charge wallet / external)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethod]
+              properties:
+                paymentMethod:
+                  type: string
+                  enum: [wallet, card, bank]
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: purchased
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saleId: { type: string }
+                  message: { type: string }
+
+  # ------------------------------
+  # NEW: REPORTS / DASHBOARD
+  # ------------------------------
+  /api/reports/estate-summary:
+    get:
+      summary: Manager estate KPI summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: estateId
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: aggregated KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportSummary'
+
+  /api/reports/devices-health:
+    get:
+      summary: Device status & health across estate
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: estateId
+          schema: { type: string }
+      responses:
+        '200':
+          description: device health metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalDevices: { type: integer }
+                  online: { type: integer }
+                  offline: { type: integer }
+                  alerts: { type: integer }
+                  details:
+                    type: array
+                    items:
+                      type: object
+
+  # ------------------------------
+  # HINT: Realtime & Websocket (non-OpenAPI formal; documented endpoint)
+  # ------------------------------
+  /ws:
+    get:
+      summary: Websocket endpoint (documented here; implement server-side ws/mqtt bridge)
+      description: |
+        Use a websocket at /ws to subscribe to realtime device telemetry, notifications and chat.
+        Authentication via the `Sec-WebSocket-Protocol: bearerAuth` header or cookies.
+      responses:
+        '101':
+          description: switching protocols (websocket)
+
+  # ------------------------------
+  # Fallback / Health
+  # ------------------------------
+  /health:
+    get:
+      summary: Server health
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
