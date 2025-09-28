@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,124 +6,204 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Optional: enable shadowDatabaseUrl for safe migrations in CI
+  // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum Role {
+  resident
+  manager
+  staff
+  admin
+}
+
+enum HouseStatus {
+  occupied
+  vacant
+  maintenance
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum RequestStatus {
+  pending
+  in_progress
+  resolved
+  cancelled
+}
+
+enum DeviceType {
+  light
+  sensor
+  water_pump
+  gate
+  camera
+  thermostat
+  other
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
+  id           String    @id @default(uuid())
+  email        String    @unique
   passwordHash String?
-  fullName    String?
-  role        String
-  phone       String?
-  createdAt   DateTime @default(now())
-  lastSeen    DateTime?
+  fullName     String?
+  role         Role      @default(resident)
+  phone        String? 
+  avatarUrl    String?   // optional profile picture URL
+  metadata     Json?     // misc meta (preferences, settings)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSeen     DateTime?
 
-  houses      House[]
-  posts       Post[]
-  comments    Comment[]
-  payments    Payment[]
-  requests    Request[]
+  // relations
+  houses       House[]     @relation("OwnerHouses")
+  posts        Post[] 
+  comments     Comment[]
+  payments     Payment[]
+  requests     Request[]
+
+  @@index([role])
+  @@index([createdAt])
 }
 
 model Estate {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  city      String?
-  state     String?
-  country   String?
-  createdAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  name       String
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  houses    House[]
-  devices   Device[]
-  posts     Post[]
-  payments  Payment[]
+  houses     House[]
+  devices    Device[]
+  posts      Post[]
+  payments   Payment[]
+
+  @@index([name])
+  @@index([city])
 }
 
 model House {
-  id        String   @id @default(uuid())
-  estateId  String
-  estate    Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
-  number    String?
-  ownerId   String?
-  owner     User?    @relation(fields: [ownerId], references: [id])
-  status    String?
-  balance   Int      @default(0)
-  createdAt DateTime @default(now())
+  id         String    @id @default(uuid())
+  estateId   String
+  estate     Estate    @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  number     String?
+  ownerId    String?
+  owner      User?     @relation("OwnerHouses", fields: [ownerId], references: [id])
+  status     HouseStatus? @default(occupied)
+  balance    Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  requests  Request[]
+  requests   Request[]
+
+  @@unique([estateId, number]) // house number unique per estate
+  @@index([estateId])
 }
 
 model Device {
   id        String   @id @default(uuid())
   estateId  String
-  estate    Estate   @relation(fields: [estateId], references: [id])
+  estate    Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
   name      String
-  type      String
+  type      DeviceType
   topic     String
   meta      Json?
   state     Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   telemetry DeviceTelemetry[]
+
+  @@index([estateId])
+  @@index([type])
 }
 
 model DeviceTelemetry {
   id        Int      @id @default(autoincrement())
   deviceId  String
-  device    Device   @relation(fields: [deviceId], references: [id])
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   ts        DateTime @default(now())
   payload   Json
+
+  @@index([deviceId, ts])
 }
 
 model Payment {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  estateId   String
-  estate     Estate   @relation(fields: [estateId], references: [id])
-  amount     Int
-  currency   String   @default("NGN")
-  status     String
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  estateId    String
+  estate      Estate    @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  amount      Int
+  currency    String    @default("NGN")
+  status      PaymentStatus @default(pending)
   externalRef String?
-  createdAt  DateTime @default(now())
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([estateId])
+  @@index([status])
 }
 
 model Request {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   houseId     String
-  house       House    @relation(fields: [houseId], references: [id])
+  house       House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: SetNull)
   category    String
   description String
-  status      String   @default("pending")
-  assignedTo  String?
-  createdAt   DateTime @default(now())
+  status      RequestStatus @default(pending)
+  assignedTo  String?   // staff user id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([houseId])
+  @@index([userId])
+  @@index([status])
 }
 
 model Post {
-  id           String   @id @default(uuid())
-  authorId     String
-  author       User     @relation(fields: [authorId], references: [id])
-  estateId     String
-  estate       Estate   @relation(fields: [estateId], references: [id])
-  content      String
-  imageUrl     String?
-  videoUrl     String?
-  pinned       Boolean  @default(false)
-  allowComments Boolean @default(true)
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid())
+  authorId      String
+  author        User     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  estateId      String
+  estate        Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  content       String
+  imageUrl      String?
+  videoUrl      String?
+  pinned        Boolean  @default(false)
+  allowComments Boolean  @default(true)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  comments     Comment[]
+  comments      Comment[]
+
+  @@index([estateId, pinned])
+  @@index([createdAt])
 }
 
 model Comment {
   id        String   @id @default(uuid())
   postId    String
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   text      String
   createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([authorId])
 }
