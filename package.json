@@ -1,7 +1,8 @@
-{
-  "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js"
-  }
+"scripts": {
+  "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+  "seed": "ts-node src/scripts/seed.ts",
+  "migrate": "prisma migrate dev",
+  "prisma:generate": "prisma generate",
+  "build": "tsc",
+  "start": "node dist/server.js"
 }
