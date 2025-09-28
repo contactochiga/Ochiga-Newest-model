@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  passwordHash String?
+  fullName    String?
+  role        String
+  phone       String?
+  createdAt   DateTime @default(now())
+  lastSeen    DateTime?
+
+  houses      House[]
+  posts       Post[]
+  comments    Comment[]
+  payments    Payment[]
+  requests    Request[]
+}
+
+model Estate {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  country   String?
+  createdAt DateTime @default(now())
+
+  houses    House[]
+  devices   Device[]
+  posts     Post[]
+  payments  Payment[]
+}
+
+model House {
+  id        String   @id @default(uuid())
+  estateId  String
+  estate    Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  number    String?
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id])
+  status    String?
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+
+  requests  Request[]
+}
+
+model Device {
+  id        String   @id @default(uuid())
+  estateId  String
+  estate    Estate   @relation(fields: [estateId], references: [id])
+  name      String
+  type      String
+  topic     String
+  meta      Json?
+  state     Json?
+  createdAt DateTime @default(now())
+
+  telemetry DeviceTelemetry[]
+}
+
+model DeviceTelemetry {
+  id        Int      @id @default(autoincrement())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  ts        DateTime @default(now())
+  payload   Json
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  estateId   String
+  estate     Estate   @relation(fields: [estateId], references: [id])
+  amount     Int
+  currency   String   @default("NGN")
+  status     String
+  externalRef String?
+  createdAt  DateTime @default(now())
+}
+
+model Request {
+  id          String   @id @default(uuid())
+  houseId     String
+  house       House    @relation(fields: [houseId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  category    String
+  description String
+  status      String   @default("pending")
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+}
+
+model Post {
+  id           String   @id @default(uuid())
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id])
+  estateId     String
+  estate       Estate   @relation(fields: [estateId], references: [id])
+  content      String
+  imageUrl     String?
+  videoUrl     String?
+  pinned       Boolean  @default(false)
+  allowComments Boolean @default(true)
+  createdAt    DateTime @default(now())
+
+  comments     Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  text      String
+  createdAt DateTime @default(now())
+}
